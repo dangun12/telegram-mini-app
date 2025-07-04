@@ -47,18 +47,18 @@
       background-color: #0077b3;
     }
 
-    .spin {
-      animation: spin 0.3s linear infinite;
+    .spinning {
+      animation: pulse 0.3s ease-in-out infinite alternate;
     }
 
-    @keyframes spin {
-      0% { transform: rotateX(0deg); }
-      100% { transform: rotateX(360deg); }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.1); }
     }
   </style>
 </head>
 <body>
-  <h1>🎰 Hohliskiv Slot Machine</h1>
+  <h1>🎰 Telegram Slot Machine</h1>
   <div class="slots">
     <div class="slot" id="slot1">🍒</div>
     <div class="slot" id="slot2">🍋</div>
@@ -70,7 +70,7 @@
   <script>
     Telegram.WebApp.ready();
 
-    const symbols = ["🍒", "🍋", "🍉", "🍇", "⭐", "7️⃣"]; // Easier to match
+    const symbols = ["🍒", "🍋", "🍉", "🍇", "⭐", "7️⃣"];
     const slots = [
       document.getElementById("slot1"),
       document.getElementById("slot2"),
@@ -83,45 +83,65 @@
       return symbols[Math.floor(Math.random() * symbols.length)];
     }
 
-    spinBtn.addEventListener("click", () => {
+    async function spinSlot(slot, duration = 1500) {
+      return new Promise(resolve => {
+        let elapsed = 0;
+        let delay = 50;
+
+        slot.classList.add("spinning");
+
+        const interval = setInterval(() => {
+          slot.textContent = getRandomSymbol();
+
+          // Gradually slow down
+          delay += 15;
+          elapsed += delay;
+
+          if (elapsed >= duration) {
+            clearInterval(interval);
+            slot.classList.remove("spinning");
+            const finalSymbol = getRandomSymbol();
+            slot.textContent = finalSymbol;
+            resolve(finalSymbol);
+          }
+        }, delay);
+      });
+    }
+
+    spinBtn.addEventListener("click", async () => {
       resultMsg.textContent = "";
       spinBtn.disabled = true;
 
-      slots.forEach(slot => slot.classList.add("spin"));
+      const finalSymbols = [];
 
-      const spinInterval = setInterval(() => {
-        slots.forEach(slot => slot.textContent = getRandomSymbol());
-      }, 100);
+      // Spin each slot sequentially
+      for (let i = 0; i < slots.length; i++) {
+        const result = await spinSlot(slots[i], 1500 + i * 300); // slight delay per slot
+        finalSymbols.push(result);
+      }
 
-      setTimeout(() => {
-        clearInterval(spinInterval);
-        slots.forEach(slot => slot.classList.remove("spin"));
+      // Analyze result
+      const [a, b, c] = finalSymbols;
 
-        const final = [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()];
-        final.forEach((s, i) => slots[i].textContent = s);
+      let winType = "none";
+      if (a === b && b === c) {
+        winType = "jackpot";
+      } else if (a === b || b === c || a === c) {
+        winType = "half";
+      }
 
-        const [a, b, c] = final;
+      if (winType === "jackpot") {
+        resultMsg.textContent = "🎉 JACKPOT! All 3 matched!";
+        Telegram.WebApp.HapticFeedback.notificationOccurred("success");
+      } else if (winType === "half") {
+        resultMsg.textContent = "🎊 Nice! You matched 2!";
+        Telegram.WebApp.HapticFeedback.notificationOccurred("warning");
+      } else {
+        resultMsg.textContent = "Try again 😅";
+        Telegram.WebApp.HapticFeedback.notificationOccurred("error");
+      }
 
-        let winType = "none";
-        if (a === b && b === c) {
-          winType = "jackpot";
-        } else if (a === b || b === c || a === c) {
-          winType = "half";
-        }
-
-        if (winType === "jackpot") {
-          resultMsg.textContent = "🎉 JACKPOT! Не лох!";
-          Telegram.WebApp.HapticFeedback.notificationOccurred("success");
-        } else if (winType === "half") {
-          resultMsg.textContent = "🎊 Nice! Напів лох!";
-          Telegram.WebApp.HapticFeedback.notificationOccurred("warning");
-        } else {
-          resultMsg.textContent = "Лох 😅";
-          Telegram.WebApp.HapticFeedback.notificationOccurred("error");
-        }
-
-        spinBtn.disabled = false;
-      }, 1200);
+      spinBtn.disabled = false;
     });
   </script>
 </body>
