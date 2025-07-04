@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Telegram Slot Machine</title>
+  <title>Hohliskiv Slot Machine</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     body {
@@ -94,6 +94,12 @@
   <div class="result" id="resultMsg"></div>
   <canvas class="confetti" id="confettiCanvas"></canvas>
 
+  <!-- SOUND EFFECTS -->
+  <audio id="spinSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_c3c89c2de8.mp3"></audio>
+  <audio id="winSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_62eb9353c8.mp3"></audio>
+  <audio id="halfWinSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_0eab2fb898.mp3"></audio>
+  <audio id="failSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_34e9114e5d.mp3"></audio>
+
   <script>
     Telegram.WebApp.ready();
 
@@ -111,6 +117,12 @@
     const coinsSpan = document.getElementById("coins");
     const winsSpan = document.getElementById("wins");
     const betSpan = document.getElementById("bet");
+    const confettiCanvas = document.getElementById("confettiCanvas");
+
+    const spinSound = document.getElementById("spinSound");
+    const winSound = document.getElementById("winSound");
+    const halfWinSound = document.getElementById("halfWinSound");
+    const failSound = document.getElementById("failSound");
 
     const bet = 10;
     let coins = 0;
@@ -152,36 +164,39 @@
     }
 
     function launchConfetti() {
-      const canvas = document.getElementById('confettiCanvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const ctx = confettiCanvas.getContext('2d');
+      confettiCanvas.width = window.innerWidth;
+      confettiCanvas.height = window.innerHeight;
 
       let pieces = Array.from({ length: 100 }, () => ({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height - canvas.height,
+        x: Math.random() * confettiCanvas.width,
+        y: Math.random() * confettiCanvas.height - confettiCanvas.height,
         radius: Math.random() * 6 + 4,
         color: `hsl(${Math.random() * 360}, 100%, 60%)`,
         dy: Math.random() * 2 + 2
       }));
 
+      let frame;
+
       function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
         for (let p of pieces) {
           ctx.beginPath();
           ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
           ctx.fillStyle = p.color;
           ctx.fill();
           p.y += p.dy;
-          if (p.y > canvas.height) p.y = 0;
+          if (p.y > confettiCanvas.height) p.y = 0;
         }
-        requestAnimationFrame(draw);
+        frame = requestAnimationFrame(draw);
       }
 
       draw();
+
       setTimeout(() => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }, 3000);
+        cancelAnimationFrame(frame);
+        ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+      }, 3000); // 3 seconds
     }
 
     async function spinSlot(slot, duration = 1500, finalSymbol = null) {
@@ -211,6 +226,7 @@
       if (coins < bet) {
         resultMsg.textContent = "😢 Not enough coins!";
         Telegram.WebApp.HapticFeedback.notificationOccurred("error");
+        failSound.play();
         return;
       }
 
@@ -219,6 +235,7 @@
       resultMsg.textContent = "";
       spinBtn.disabled = true;
       jackpotBtn.disabled = true;
+      spinSound.play();
 
       let finalSymbols = [];
 
@@ -250,13 +267,16 @@
         wins++;
         launchConfetti();
         Telegram.WebApp.HapticFeedback.notificationOccurred("success");
+        winSound.play();
       } else if (winType === "half") {
         resultMsg.textContent = "🎊 Matched 2! You win 15 coins!";
         coins += 15;
         Telegram.WebApp.HapticFeedback.notificationOccurred("warning");
+        halfWinSound.play();
       } else {
         resultMsg.textContent = "Try again 😅";
         Telegram.WebApp.HapticFeedback.notificationOccurred("error");
+        failSound.play();
       }
 
       updateStats();
