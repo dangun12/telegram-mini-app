@@ -58,7 +58,7 @@
   </style>
 </head>
 <body>
-  <h1>🎰 Telegram Slot Machine</h1>
+  <h1>🎰 Hohliskiv Slot Machine</h1>
   <div class="slots">
     <div class="slot" id="slot1">🍒</div>
     <div class="slot" id="slot2">🍋</div>
@@ -70,7 +70,7 @@
   <script>
     Telegram.WebApp.ready();
 
-    const symbols = ["🍒", "🍋", "🍉", "🍇", "🍊", "⭐", "💎", "7️⃣"];
+    const symbols = ["🍒", "🍋", "🍉", "🍇", "⭐", "7️⃣"]; // Easier to match
     const slots = [
       document.getElementById("slot1"),
       document.getElementById("slot2"),
@@ -87,33 +87,36 @@
       resultMsg.textContent = "";
       spinBtn.disabled = true;
 
-      // Add spinning animation
-      slots.forEach(slot => {
-        slot.classList.add("spin");
-      });
+      slots.forEach(slot => slot.classList.add("spin"));
 
-      // Spin for 1 second
-      let spinInterval = setInterval(() => {
-        slots.forEach(slot => {
-          slot.textContent = getRandomSymbol();
-        });
+      const spinInterval = setInterval(() => {
+        slots.forEach(slot => slot.textContent = getRandomSymbol());
       }, 100);
 
       setTimeout(() => {
         clearInterval(spinInterval);
         slots.forEach(slot => slot.classList.remove("spin"));
 
-        // Final result
         const final = [getRandomSymbol(), getRandomSymbol(), getRandomSymbol()];
         final.forEach((s, i) => slots[i].textContent = s);
 
-        const win = final.every(s => s === final[0]);
+        const [a, b, c] = final;
 
-        if (win) {
-          resultMsg.textContent = "🎉 JACKPOT! Не Лох!";
+        let winType = "none";
+        if (a === b && b === c) {
+          winType = "jackpot";
+        } else if (a === b || b === c || a === c) {
+          winType = "half";
+        }
+
+        if (winType === "jackpot") {
+          resultMsg.textContent = "🎉 JACKPOT! Не лох!";
           Telegram.WebApp.HapticFeedback.notificationOccurred("success");
+        } else if (winType === "half") {
+          resultMsg.textContent = "🎊 Nice! Напів лох!";
+          Telegram.WebApp.HapticFeedback.notificationOccurred("warning");
         } else {
-          resultMsg.textContent = "Лох";
+          resultMsg.textContent = "Лох 😅";
           Telegram.WebApp.HapticFeedback.notificationOccurred("error");
         }
 
