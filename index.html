@@ -44,6 +44,13 @@
     }
   }
 
+  function updateStats() {
+    coinsSpan.textContent = coins;
+    winsSpan.textContent = wins;
+    betSpan.textContent = bet;
+    saveData();
+  }
+
   function saveData() {
     const data = { coins, wins };
     localStorage.setItem("slotData", JSON.stringify(data));
@@ -58,22 +65,11 @@
   function sendToGoogleSheet(userId, coins, wins) {
     fetch('https://script.google.com/macros/s/AKfycbzMq_HKLjW2TXO9ejeo3ari_N6FNeESrv-jsBcS0G4j7SYFtZxjM6pRxdmCZGfv8Ikm/exec', {
       method: 'POST',
-      body: JSON.stringify({
-        user_id: userId,
-        coins: coins,
-        wins: wins
-      }),
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({ user_id: userId, coins, wins })
     });
-  }
-
-  function updateStats() {
-    coinsSpan.textContent = coins;
-    winsSpan.textContent = wins;
-    betSpan.textContent = bet;
-    saveData();
   }
 
   function getRandomSymbol() {
@@ -81,11 +77,11 @@
   }
 
   function launchConfetti() {
-    const ctx = confettiCanvas.getContext('2d');
+    const ctx = confettiCanvas.getContext("2d");
     confettiCanvas.width = window.innerWidth;
     confettiCanvas.height = window.innerHeight;
 
-    let pieces = Array.from({ length: 100 }, () => ({
+    const pieces = Array.from({ length: 100 }, () => ({
       x: Math.random() * confettiCanvas.width,
       y: Math.random() * confettiCanvas.height - confettiCanvas.height,
       radius: Math.random() * 6 + 4,
@@ -96,7 +92,7 @@
     let frame;
     function draw() {
       ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
-      for (let p of pieces) {
+      for (const p of pieces) {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
         ctx.fillStyle = p.color;
@@ -151,8 +147,7 @@
     jackpotBtn.disabled = true;
     spinSound.play();
 
-    let finalSymbols = [];
-
+    const finalSymbols = [];
     if (forceJackpot) {
       const jackpotSymbol = getRandomSymbol();
       for (let i = 0; i < slots.length; i++) {
