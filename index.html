@@ -38,13 +38,14 @@
     }
 
     button {
-      padding: 12px 30px;
-      font-size: 18px;
+      padding: 12px 24px;
+      font-size: 16px;
       border: none;
       background-color: #0088cc;
       color: white;
       border-radius: 12px;
       cursor: pointer;
+      margin: 5px;
       transition: background 0.3s;
     }
 
@@ -75,7 +76,7 @@
 <body>
   <h1>🎰 Telegram Slot Machine</h1>
   <div class="stats">
-    Coins: <span id="coins">100</span> |
+    Coins: <span id="coins">0</span> |
     Wins: <span id="wins">0</span> |
     Bet: <span id="bet">10</span>
   </div>
@@ -87,8 +88,10 @@
   </div>
 
   <button id="spinBtn">SPIN</button>
-  <div class="result" id="resultMsg"></div>
+  <button id="testBtn">+10 Coins (Test)</button>
+  <button id="jackpotBtn">🎯 Force Jackpot</button>
 
+  <div class="result" id="resultMsg"></div>
   <canvas class="confetti" id="confettiCanvas"></canvas>
 
   <script>
@@ -102,19 +105,46 @@
     ];
 
     const spinBtn = document.getElementById("spinBtn");
+    const testBtn = document.getElementById("testBtn");
+    const jackpotBtn = document.getElementById("jackpotBtn");
     const resultMsg = document.getElementById("resultMsg");
     const coinsSpan = document.getElementById("coins");
     const winsSpan = document.getElementById("wins");
     const betSpan = document.getElementById("bet");
 
-    let coins = 100;
-    let wins = 0;
     const bet = 10;
+    let coins = 0;
+    let wins = 0;
+    let forceJackpot = false;
+
+    function loadData() {
+      const saved = localStorage.getItem("slotData");
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          coins = data.coins || 100;
+          wins = data.wins || 0;
+        } catch {
+          coins = 100;
+          wins = 0;
+        }
+      } else {
+        coins = 100;
+        wins = 0;
+      }
+    }
+
+    function saveData() {
+      const data = { coins, wins };
+      localStorage.setItem("slotData", JSON.stringify(data));
+      Telegram.WebApp.sendData(JSON.stringify(data));
+    }
 
     function updateStats() {
       coinsSpan.textContent = coins;
       winsSpan.textContent = wins;
       betSpan.textContent = bet;
+      saveData();
     }
 
     function getRandomSymbol() {
@@ -154,7 +184,7 @@
       }, 3000);
     }
 
-    async function spinSlot(slot, duration = 1500) {
+    async function spinSlot(slot, duration = 1500, finalSymbol = null) {
       return new Promise(resolve => {
         let elapsed = 0;
         let delay = 50;
@@ -169,9 +199,9 @@
           if (elapsed >= duration) {
             clearInterval(interval);
             slot.classList.remove("spinning");
-            const finalSymbol = getRandomSymbol();
-            slot.textContent = finalSymbol;
-            resolve(finalSymbol);
+            const symbol = finalSymbol || getRandomSymbol();
+            slot.textContent = symbol;
+            resolve(symbol);
           }
         }, delay);
       });
@@ -188,11 +218,22 @@
       updateStats();
       resultMsg.textContent = "";
       spinBtn.disabled = true;
+      jackpotBtn.disabled = true;
 
-      const finalSymbols = [];
-      for (let i = 0; i < slots.length; i++) {
-        const result = await spinSlot(slots[i], 1500 + i * 300);
-        finalSymbols.push(result);
+      let finalSymbols = [];
+
+      if (forceJackpot) {
+        const jackpotSymbol = getRandomSymbol();
+        for (let i = 0; i < slots.length; i++) {
+          const symbol = await spinSlot(slots[i], 1500 + i * 300, jackpotSymbol);
+          finalSymbols.push(symbol);
+        }
+        forceJackpot = false;
+      } else {
+        for (let i = 0; i < slots.length; i++) {
+          const symbol = await spinSlot(slots[i], 1500 + i * 300);
+          finalSymbols.push(symbol);
+        }
       }
 
       const [a, b, c] = finalSymbols;
@@ -204,14 +245,14 @@
       }
 
       if (winType === "jackpot") {
-        resultMsg.textContent = "🎉 JACKPOT! You win 100 coins!";
-        coins += 100;
+        resultMsg.textContent = "🎉 JACKPOT! You win 50 coins!";
+        coins += 50;
         wins++;
         launchConfetti();
         Telegram.WebApp.HapticFeedback.notificationOccurred("success");
       } else if (winType === "half") {
-        resultMsg.textContent = "🎊 Matched 2! You win 20 coins!";
-        coins += 20;
+        resultMsg.textContent = "🎊 Matched 2! You win 15 coins!";
+        coins += 15;
         Telegram.WebApp.HapticFeedback.notificationOccurred("warning");
       } else {
         resultMsg.textContent = "Try again 😅";
@@ -219,10 +260,21 @@
       }
 
       updateStats();
-      Telegram.WebApp.sendData(JSON.stringify({ coins, wins })); // Send result to bot
       spinBtn.disabled = false;
+      jackpotBtn.disabled = false;
     });
 
+    testBtn.addEventListener("click", () => {
+      coins += 10;
+      updateStats();
+    });
+
+    jackpotBtn.addEventListener("click", () => {
+      forceJackpot = true;
+      alert("🎯 Jackpot mode activated! Next spin will be a guaranteed win.");
+    });
+
+    loadData();
     updateStats();
   </script>
 </body>
