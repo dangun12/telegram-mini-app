@@ -146,11 +146,30 @@
       }
     }
 
-    function saveData() {
-      const data = { coins, wins };
-      localStorage.setItem("slotData", JSON.stringify(data));
-      Telegram.WebApp.sendData(JSON.stringify(data));
+function saveData() {
+  const data = { coins, wins };
+  localStorage.setItem("slotData", JSON.stringify(data));
+  Telegram.WebApp.sendData(JSON.stringify(data));
+
+  const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+  if (userId) {
+    sendToGoogleSheet(userId, coins, wins);
+  }
+}
+function sendToGoogleSheet(userId, coins, wins) {
+  fetch('https://script.google.com/macros/s/AKfycbzMq_HKLjW2TXO9ejeo3ari_N6FNeESrv-jsBcS0G4j7SYFtZxjM6pRxdmCZGfv8Ikm/exec', {
+    method: 'POST',
+    body: JSON.stringify({
+      user_id: userId,
+      coins: coins,
+      wins: wins
+    }),
+    headers: {
+      'Content-Type': 'application/json'
     }
+  });
+}
+
 
     function updateStats() {
       coinsSpan.textContent = coins;
