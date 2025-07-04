@@ -9,12 +9,17 @@
       background-color: white;
       font-family: 'Segoe UI', sans-serif;
       text-align: center;
-      padding-top: 80px;
+      padding-top: 60px;
     }
 
     h1 {
-      font-size: 28px;
-      margin-bottom: 40px;
+      font-size: 26px;
+      margin-bottom: 10px;
+    }
+
+    .stats {
+      font-size: 18px;
+      margin-bottom: 20px;
     }
 
     .slots {
@@ -28,7 +33,7 @@
 
     .result {
       font-size: 22px;
-      margin-top: 20px;
+      margin-top: 10px;
       height: 28px;
     }
 
@@ -55,17 +60,36 @@
       0% { transform: scale(1); }
       100% { transform: scale(1.1); }
     }
+
+    .confetti {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+    }
   </style>
 </head>
 <body>
-  <h1>🎰 Hohliskiv Slot Machine</h1>
+  <h1>🎰 Telegram Slot Machine</h1>
+  <div class="stats">
+    Coins: <span id="coins">100</span> |
+    Wins: <span id="wins">0</span> |
+    Bet: <span id="bet">10</span>
+  </div>
+
   <div class="slots">
     <div class="slot" id="slot1">🍒</div>
     <div class="slot" id="slot2">🍋</div>
     <div class="slot" id="slot3">🍉</div>
   </div>
+
   <button id="spinBtn">SPIN</button>
   <div class="result" id="resultMsg"></div>
+
+  <canvas class="confetti" id="confettiCanvas"></canvas>
 
   <script>
     Telegram.WebApp.ready();
@@ -76,11 +100,58 @@
       document.getElementById("slot2"),
       document.getElementById("slot3"),
     ];
+
     const spinBtn = document.getElementById("spinBtn");
     const resultMsg = document.getElementById("resultMsg");
+    const coinsSpan = document.getElementById("coins");
+    const winsSpan = document.getElementById("wins");
+    const betSpan = document.getElementById("bet");
+
+    let coins = 100;
+    let wins = 0;
+    const bet = 10;
+
+    function updateStats() {
+      coinsSpan.textContent = coins;
+      winsSpan.textContent = wins;
+      betSpan.textContent = bet;
+    }
 
     function getRandomSymbol() {
       return symbols[Math.floor(Math.random() * symbols.length)];
+    }
+
+    function launchConfetti() {
+      const canvas = document.getElementById('confettiCanvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      let pieces = Array.from({ length: 100 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height - canvas.height,
+        radius: Math.random() * 6 + 4,
+        color: `hsl(${Math.random() * 360}, 100%, 60%)`,
+        dy: Math.random() * 2 + 2
+      }));
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let p of pieces) {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.fill();
+          p.y += p.dy;
+          if (p.y > canvas.height) p.y = 0;
+        }
+        requestAnimationFrame(draw);
+      }
+
+      draw();
+      setTimeout(() => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }, 3000);
     }
 
     async function spinSlot(slot, duration = 1500) {
@@ -92,8 +163,6 @@
 
         const interval = setInterval(() => {
           slot.textContent = getRandomSymbol();
-
-          // Gradually slow down
           delay += 15;
           elapsed += delay;
 
@@ -109,20 +178,24 @@
     }
 
     spinBtn.addEventListener("click", async () => {
+      if (coins < bet) {
+        resultMsg.textContent = "😢 Not enough coins!";
+        Telegram.WebApp.HapticFeedback.notificationOccurred("error");
+        return;
+      }
+
+      coins -= bet;
+      updateStats();
       resultMsg.textContent = "";
       spinBtn.disabled = true;
 
       const finalSymbols = [];
-
-      // Spin each slot sequentially
       for (let i = 0; i < slots.length; i++) {
-        const result = await spinSlot(slots[i], 1500 + i * 300); // slight delay per slot
+        const result = await spinSlot(slots[i], 1500 + i * 300);
         finalSymbols.push(result);
       }
 
-      // Analyze result
       const [a, b, c] = finalSymbols;
-
       let winType = "none";
       if (a === b && b === c) {
         winType = "jackpot";
@@ -131,18 +204,26 @@
       }
 
       if (winType === "jackpot") {
-        resultMsg.textContent = "🎉 JACKPOT! All 3 matched!";
+        resultMsg.textContent = "🎉 JACKPOT! You win 100 coins!";
+        coins += 100;
+        wins++;
+        launchConfetti();
         Telegram.WebApp.HapticFeedback.notificationOccurred("success");
       } else if (winType === "half") {
-        resultMsg.textContent = "🎊 Nice! You matched 2!";
+        resultMsg.textContent = "🎊 Matched 2! You win 20 coins!";
+        coins += 20;
         Telegram.WebApp.HapticFeedback.notificationOccurred("warning");
       } else {
         resultMsg.textContent = "Try again 😅";
         Telegram.WebApp.HapticFeedback.notificationOccurred("error");
       }
 
+      updateStats();
+      Telegram.WebApp.sendData(JSON.stringify({ coins, wins })); // Send result to bot
       spinBtn.disabled = false;
     });
+
+    updateStats();
   </script>
 </body>
 </html>
