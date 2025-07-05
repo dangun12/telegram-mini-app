@@ -129,22 +129,23 @@
     let wins = 0;
     let forceJackpot = false;
 
-    function loadData() {
-      const saved = localStorage.getItem("slotData");
-      if (saved) {
-        try {
-          const data = JSON.parse(saved);
-          coins = data.coins || 100;
-          wins = data.wins || 0;
-        } catch {
-          coins = 100;
-          wins = 0;
-        }
-      } else {
-        coins = 100;
-        wins = 0;
-      }
+function loadData() {
+  const saved = localStorage.getItem("slotData");
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      coins = typeof data.coins === "number" ? data.coins : 100;
+      wins = typeof data.wins === "number" ? data.wins : 0;
+    } catch {
+      coins = 100;
+      wins = 0;
     }
+  } else {
+    coins = 100;
+    wins = 0;
+  }
+}
+
 
 function saveData() {
   const data = { coins, wins };
