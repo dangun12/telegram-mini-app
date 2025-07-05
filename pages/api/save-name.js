@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     return res.status(400).send("Missing user_id or username");
   }
 
-  const scriptURL = "https://script.google.com/macros/s/AKfycbxDF5LInYBIPLqiwcV6oQvFCX3kGstqY6pLsUYgr_fSP8rwVapGUIxiymf8ScYvJqJJ/exec";
+  const scriptURL = "https://script.google.com/macros/s/AKfycbweWzP0BEnFWdHUWqeO_hVLgbWjB5xTwKWioyei-ysDVnlu8WX4aWyXJYhFR_rcZwpG/exec";
 
   try {
     const response = await fetch(scriptURL, {
