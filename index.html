@@ -131,6 +131,24 @@
     let wins = 0;
     let forceJackpot = false;
 
+document.getElementById("saveNameBtn").addEventListener("click", () => {
+  const user = Telegram.WebApp.initDataUnsafe?.user;
+  if (!user) return alert("User not found");
+
+  fetch('/api/save-name', {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: user.id,
+      username: user.username || ""
+    })
+  })
+  .then(res => res.text())
+  .then(msg => alert("Saved: " + msg))
+  .catch(err => alert("Error: " + err));
+});
+
+    
     function loadData() {
       const saved = localStorage.getItem("slotData");
       if (saved) {
