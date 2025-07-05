@@ -90,6 +90,7 @@
   <button id="spinBtn">SPIN</button>
   <button id="testBtn">+10 Coins (Test)</button>
   <button id="jackpotBtn">🎯 Force Jackpot</button>
+  <button id="saveNameBtn">💾 Save Name</button>
 
   <div class="result" id="resultMsg"></div>
   <canvas class="confetti" id="confettiCanvas"></canvas>
@@ -113,6 +114,7 @@
     const spinBtn = document.getElementById("spinBtn");
     const testBtn = document.getElementById("testBtn");
     const jackpotBtn = document.getElementById("jackpotBtn");
+    const saveNameBtn = document.getElementById("saveNameBtn");
     const resultMsg = document.getElementById("resultMsg");
     const coinsSpan = document.getElementById("coins");
     const winsSpan = document.getElementById("wins");
@@ -129,51 +131,77 @@
     let wins = 0;
     let forceJackpot = false;
 
-function loadData() {
-  const saved = localStorage.getItem("slotData");
-  if (saved) {
-    try {
-      const data = JSON.parse(saved);
-      coins = typeof data.coins === "number" ? data.coins : 100;
-      wins = typeof data.wins === "number" ? data.wins : 0;
-    } catch {
-      coins = 100;
-      wins = 0;
+    function loadData() {
+      const saved = localStorage.getItem("slotData");
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          coins = typeof data.coins === "number" ? data.coins : 100;
+          wins = typeof data.wins === "number" ? data.wins : 0;
+        } catch {
+          coins = 100;
+          wins = 0;
+        }
+      } else {
+        coins = 100;
+        wins = 0;
+      }
     }
-  } else {
-    coins = 100;
-    wins = 0;
-  }
-}
 
+    function saveData() {
+      const data = { coins, wins };
+      localStorage.setItem("slotData", JSON.stringify(data));
+      Telegram.WebApp.sendData(JSON.stringify(data));
 
-function saveData() {
-  const data = { coins, wins };
-  localStorage.setItem("slotData", JSON.stringify(data));
-  Telegram.WebApp.sendData(JSON.stringify(data));
+      const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
+      if (userId) {
+        sendToGoogleSheet(userId, coins, wins);
+      }
+    }
 
-  const userId = Telegram.WebApp.initDataUnsafe?.user?.id;
-  if (userId) {
-    sendToGoogleSheet(userId, coins, wins);
-  }
-}
-function sendToGoogleSheet(userId, coins, wins) {
-  fetch('/api/save', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      user_id: userId,
-      coins: coins,
-      wins: wins
-    })
-  }).then(res => res.text())
-    .then(data => console.log("Saved to sheet:", data))
-    .catch(err => console.error("Error saving:", err));
-}
+    function sendToGoogleSheet(userId, coins, wins) {
+      fetch('/api/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          coins: coins,
+          wins: wins
+        })
+      }).then(res => res.text())
+        .then(data => console.log("Saved to sheet:", data))
+        .catch(err => console.error("Error saving:", err));
+    }
 
+    saveNameBtn.addEventListener("click", () => {
+      const user = Telegram.WebApp.initDataUnsafe?.user;
+      if (!user) {
+        alert("Telegram user not detected");
+        return;
+      }
 
+      const userId = user.id;
+      const username = user.username || `${user.first_name || ""} ${user.last_name || ""}`.trim();
+
+      fetch('/api/save-name', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          username: username
+        })
+      })
+        .then(res => res.text())
+        .then(data => alert("✅ Name saved"))
+        .catch(err => {
+          console.error("Error saving name:", err);
+          alert("❌ Failed to save name");
+        });
+    });
 
     function updateStats() {
       coinsSpan.textContent = coins;
@@ -195,7 +223,7 @@ function sendToGoogleSheet(userId, coins, wins) {
         x: Math.random() * confettiCanvas.width,
         y: Math.random() * confettiCanvas.height - confettiCanvas.height,
         radius: Math.random() * 6 + 4,
-        color: hsl(${Math.random() * 360}, 100%, 60%),
+        color: `hsl(${Math.random() * 360}, 100%, 60%)`,
         dy: Math.random() * 2 + 2
       }));
 
@@ -219,7 +247,7 @@ function sendToGoogleSheet(userId, coins, wins) {
       setTimeout(() => {
         cancelAnimationFrame(frame);
         ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
-      }, 3000); // 3 seconds
+      }, 3000);
     }
 
     async function spinSlot(slot, duration = 1500, finalSymbol = null) {
